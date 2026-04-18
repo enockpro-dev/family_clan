@@ -61,7 +61,6 @@ class ClanBook:
         full_name: str,
         clan_name: str | None = None,
         gender: str | None = None,
-        birth_year: int | None = None,
         notes: str | None = None,
         father_name: str | None = None,
         mother_name: str | None = None,
@@ -84,7 +83,7 @@ class ClanBook:
                 cleaned_name,
                 clan_name.strip() if clan_name else None,
                 gender.strip() if gender else None,
-                birth_year,
+                None,
                 notes.strip() if notes else None,
                 father_id,
                 mother_id,
@@ -145,22 +144,19 @@ class ClanBookApp:
     def __init__(self, root: tk.Tk, book: ClanBook) -> None:
         self.root = root
         self.book = book
-        self.selected_name: str | None = None
 
-        self.root.title("Clan Book")
-        self.root.geometry("1100x700")
-        self.root.minsize(950, 620)
+        self.root.title("Clan Registration")
+        self.root.geometry("680x520")
+        self.root.minsize(620, 500)
 
         self.full_name_var = tk.StringVar()
         self.clan_name_var = tk.StringVar()
         self.gender_var = tk.StringVar()
-        self.birth_year_var = tk.StringVar()
         self.father_name_var = tk.StringVar()
         self.mother_name_var = tk.StringVar()
 
         self._configure_style()
         self._build_layout()
-        self.refresh_people()
 
     def _configure_style(self) -> None:
         self.root.configure(bg="#f3efe4")
@@ -193,7 +189,7 @@ class ClanBookApp:
 
         title = ttk.Label(
             outer,
-            text="Clan Book",
+            text="Clan Registration",
             style="Title.TLabel",
             font=("Georgia", 24, "bold"),
         )
@@ -201,7 +197,7 @@ class ClanBookApp:
 
         subtitle = ttk.Label(
             outer,
-            text="Register clan members and trace each person's family chain.",
+            text="Enter a person's details to register them in the clan book.",
             style="Title.TLabel",
             font=("Segoe UI", 11),
         )
@@ -210,31 +206,16 @@ class ClanBookApp:
         content = ttk.Frame(outer, style="App.TFrame")
         content.pack(fill="both", expand=True)
         content.columnconfigure(0, weight=1)
-        content.columnconfigure(1, weight=1)
         content.rowconfigure(0, weight=1)
 
-        left = ttk.Frame(content, style="App.TFrame")
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        left.rowconfigure(1, weight=1)
-        left.columnconfigure(0, weight=1)
-
-        right = ttk.Frame(content, style="App.TFrame")
-        right.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
-        right.rowconfigure(0, weight=1)
-        right.rowconfigure(1, weight=1)
-        right.columnconfigure(0, weight=1)
-
-        self._build_form(left)
-        self._build_people_list(left)
-        self._build_details_panel(right)
-        self._build_lineage_panel(right)
+        self._build_form(content)
 
     def _build_form(self, parent: ttk.Frame) -> None:
         card = ttk.Frame(parent, style="Card.TFrame", padding=16)
-        card.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+        card.grid(row=0, column=0, sticky="nsew")
         card.columnconfigure(1, weight=1)
 
-        ttk.Label(card, text="Register Person", style="Heading.TLabel").grid(
+        ttk.Label(card, text="Registration Form", style="Heading.TLabel").grid(
             row=0, column=0, columnspan=2, sticky="w", pady=(0, 10)
         )
 
@@ -242,7 +223,6 @@ class ClanBookApp:
             ("Full name", self.full_name_var),
             ("Clan name", self.clan_name_var),
             ("Gender", self.gender_var),
-            ("Birth year", self.birth_year_var),
             ("Father full name", self.father_name_var),
             ("Mother full name", self.mother_name_var),
         ]
@@ -256,7 +236,7 @@ class ClanBookApp:
             )
 
         ttk.Label(card, text="Notes", style="Body.TLabel").grid(
-            row=7, column=0, sticky="nw", padx=(0, 12), pady=6
+            row=6, column=0, sticky="nw", padx=(0, 12), pady=6
         )
         self.notes_text = tk.Text(
             card,
@@ -266,10 +246,10 @@ class ClanBookApp:
             bg="#ffffff",
             fg="#2c2419",
         )
-        self.notes_text.grid(row=7, column=1, sticky="ew", pady=6)
+        self.notes_text.grid(row=6, column=1, sticky="ew", pady=6)
 
         button_row = ttk.Frame(card, style="Card.TFrame")
-        button_row.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        button_row.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         button_row.columnconfigure(0, weight=1)
         button_row.columnconfigure(1, weight=1)
 
@@ -286,133 +266,12 @@ class ClanBookApp:
             command=self.clear_form,
         ).grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
-    def _build_people_list(self, parent: ttk.Frame) -> None:
-        card = ttk.Frame(parent, style="Card.TFrame", padding=16)
-        card.grid(row=1, column=0, sticky="nsew")
-        card.columnconfigure(0, weight=1)
-        card.rowconfigure(1, weight=1)
-
-        ttk.Label(card, text="Registered People", style="Heading.TLabel").grid(
-            row=0, column=0, sticky="w", pady=(0, 10)
-        )
-
-        self.people_listbox = tk.Listbox(
-            card,
-            activestyle="none",
-            font=("Segoe UI", 10),
-            bg="#fffdf8",
-            fg="#2c2419",
-            selectbackground="#b5873f",
-            selectforeground="#ffffff",
-        )
-        self.people_listbox.grid(row=1, column=0, sticky="nsew")
-        self.people_listbox.bind("<<ListboxSelect>>", self.on_person_selected)
-
-        scrollbar = ttk.Scrollbar(
-            card, orient="vertical", command=self.people_listbox.yview
-        )
-        scrollbar.grid(row=1, column=1, sticky="ns")
-        self.people_listbox.config(yscrollcommand=scrollbar.set)
-
-    def _build_details_panel(self, parent: ttk.Frame) -> None:
-        card = ttk.Frame(parent, style="Card.TFrame", padding=16)
-        card.grid(row=0, column=0, sticky="nsew", pady=(0, 12))
-        card.columnconfigure(0, weight=1)
-        card.rowconfigure(1, weight=1)
-
-        ttk.Label(card, text="Person Details", style="Heading.TLabel").grid(
-            row=0, column=0, sticky="w", pady=(0, 10)
-        )
-
-        self.details_text = tk.Text(
-            card,
-            height=12,
-            wrap="word",
-            font=("Consolas", 10),
-            bg="#fffdf8",
-            fg="#2c2419",
-            state="disabled",
-        )
-        self.details_text.grid(row=1, column=0, sticky="nsew")
-
-    def _build_lineage_panel(self, parent: ttk.Frame) -> None:
-        card = ttk.Frame(parent, style="Card.TFrame", padding=16)
-        card.grid(row=1, column=0, sticky="nsew")
-        card.columnconfigure(0, weight=1)
-        card.rowconfigure(1, weight=1)
-
-        top = ttk.Frame(card, style="Card.TFrame")
-        top.grid(row=0, column=0, sticky="ew", pady=(0, 10))
-        top.columnconfigure(0, weight=1)
-
-        ttk.Label(top, text="Family Chain", style="Heading.TLabel").grid(
-            row=0, column=0, sticky="w"
-        )
-
-        ttk.Button(top, text="Show Selected Lineage", command=self.show_lineage).grid(
-            row=0, column=1, sticky="e"
-        )
-
-        self.lineage_text = tk.Text(
-            card,
-            height=12,
-            wrap="word",
-            font=("Consolas", 10),
-            bg="#fffdf8",
-            fg="#2c2419",
-            state="disabled",
-        )
-        self.lineage_text.grid(row=1, column=0, sticky="nsew")
-
-    def set_text(self, widget: tk.Text, value: str) -> None:
-        widget.config(state="normal")
-        widget.delete("1.0", tk.END)
-        widget.insert("1.0", value)
-        widget.config(state="disabled")
-
-    def refresh_people(self) -> None:
-        current_selection = self.selected_name
-        self.people_listbox.delete(0, tk.END)
-
-        people = list(self.book.list_people())
-        for person in people:
-            self.people_listbox.insert(tk.END, person["full_name"])
-
-        if not people:
-            self.selected_name = None
-            self.set_text(self.details_text, "No people have been registered yet.")
-            self.set_text(self.lineage_text, "Select a person to see their family chain.")
-            return
-
-        if current_selection:
-            names = [person["full_name"] for person in people]
-            if current_selection in names:
-                index = names.index(current_selection)
-                self.people_listbox.selection_set(index)
-                self.people_listbox.activate(index)
-                self.people_listbox.see(index)
-                self.show_person(current_selection)
-                return
-
-        self.people_listbox.selection_set(0)
-        self.people_listbox.activate(0)
-        self.on_person_selected()
-
     def save_person(self) -> None:
-        birth_year_text = self.birth_year_var.get().strip()
-        birth_year = None
-        if birth_year_text:
-            if not birth_year_text.isdigit():
-                messagebox.showerror("Invalid birth year", "Birth year must be a number.")
-                return
-            birth_year = int(birth_year_text)
-
         try:
             self.book.add_person(
                 full_name=self.full_name_var.get(),
                 clan_name=self.clan_name_var.get() or None,
                 gender=self.gender_var.get() or None,
-                birth_year=birth_year,
                 notes=self.notes_text.get("1.0", tk.END).strip() or None,
                 father_name=self.father_name_var.get() or None,
                 mother_name=self.mother_name_var.get() or None,
@@ -429,62 +288,15 @@ class ClanBookApp:
 
         saved_name = self.full_name_var.get().strip()
         self.clear_form()
-        self.selected_name = saved_name
-        self.refresh_people()
-        self.show_person(saved_name)
-        self.show_lineage()
         messagebox.showinfo("Saved", f"{saved_name} was added successfully.")
 
     def clear_form(self) -> None:
         self.full_name_var.set("")
         self.clan_name_var.set("")
         self.gender_var.set("")
-        self.birth_year_var.set("")
         self.father_name_var.set("")
         self.mother_name_var.set("")
         self.notes_text.delete("1.0", tk.END)
-
-    def on_person_selected(self, _event: object | None = None) -> None:
-        selection = self.people_listbox.curselection()
-        if not selection:
-            return
-
-        name = self.people_listbox.get(selection[0])
-        self.show_person(name)
-        self.show_lineage()
-
-    def show_person(self, full_name: str) -> None:
-        details = self.book.get_person_details(full_name)
-        if not details:
-            self.selected_name = None
-            self.set_text(self.details_text, "Person not found.")
-            return
-
-        self.selected_name = full_name
-        details_output = "\n".join(
-            [
-                f"Name: {details['full_name']}",
-                f"Clan: {details['clan_name'] or 'Not set'}",
-                f"Gender: {details['gender'] or 'Not set'}",
-                f"Birth year: {details['birth_year'] or 'Not set'}",
-                f"Father: {details['father_name'] or 'Unknown'}",
-                f"Mother: {details['mother_name'] or 'Unknown'}",
-                f"Notes: {details['notes'] or 'None'}",
-            ]
-        )
-        self.set_text(self.details_text, details_output)
-
-    def show_lineage(self) -> None:
-        if not self.selected_name:
-            self.set_text(self.lineage_text, "Select a person to see their family chain.")
-            return
-
-        try:
-            lineage_output = "\n".join(self.book.lineage(self.selected_name))
-        except ValueError as error:
-            lineage_output = str(error)
-
-        self.set_text(self.lineage_text, lineage_output)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -497,7 +309,6 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser.add_argument("--name", required=True, help="Full name of the person.")
     add_parser.add_argument("--clan", help="Clan name.")
     add_parser.add_argument("--gender", help="Gender.")
-    add_parser.add_argument("--birth-year", type=int, help="Birth year.")
     add_parser.add_argument("--notes", help="Extra notes.")
     add_parser.add_argument("--father", help="Full name of the father.")
     add_parser.add_argument("--mother", help="Full name of the mother.")
@@ -542,7 +353,6 @@ def main() -> None:
                 full_name=args.name,
                 clan_name=args.clan,
                 gender=args.gender,
-                birth_year=args.birth_year,
                 notes=args.notes,
                 father_name=args.father,
                 mother_name=args.mother,
@@ -562,7 +372,6 @@ def main() -> None:
             print(f"Name: {details['full_name']}")
             print(f"Clan: {details['clan_name'] or 'Not set'}")
             print(f"Gender: {details['gender'] or 'Not set'}")
-            print(f"Birth year: {details['birth_year'] or 'Not set'}")
             print(f"Father: {details['father_name'] or 'Unknown'}")
             print(f"Mother: {details['mother_name'] or 'Unknown'}")
             print(f"Notes: {details['notes'] or 'None'}")
