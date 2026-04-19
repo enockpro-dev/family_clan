@@ -26,6 +26,8 @@ class ClanBook:
                 gender TEXT,
                 birth_year INTEGER,
                 notes TEXT,
+                father_name_text TEXT,
+                mother_name_text TEXT,
                 father_id INTEGER,
                 mother_id INTEGER,
                 FOREIGN KEY (father_id) REFERENCES people (id),
@@ -33,7 +35,18 @@ class ClanBook:
             )
             """
         )
+        self._ensure_column("father_name_text", "TEXT")
+        self._ensure_column("mother_name_text", "TEXT")
         self.connection.commit()
+
+    def _ensure_column(self, column_name: str, column_type: str) -> None:
+        columns = self.connection.execute("PRAGMA table_info(people)").fetchall()
+        column_names = {column["name"] for column in columns}
+        if column_name in column_names:
+            return
+        self.connection.execute(
+            f"ALTER TABLE people ADD COLUMN {column_name} {column_type}"
+        )
 
     def close(self) -> None:
         self.connection.close()
@@ -45,15 +58,13 @@ class ClanBook:
         )
         return cursor.fetchone()
 
-    def _require_person_id(self, full_name: str | None) -> int | None:
+    def _find_person_id(self, full_name: str | None) -> int | None:
         if not full_name:
             return None
 
         person = self._get_person_by_name(full_name)
         if person is None:
-            raise ValueError(
-                f"'{full_name}' was not found. Add that parent first before linking them."
-            )
+            return None
         return int(person["id"])
 
     def add_person(
@@ -69,15 +80,25 @@ class ClanBook:
         if not cleaned_name:
             raise ValueError("Full name is required.")
 
-        father_id = self._require_person_id(father_name)
-        mother_id = self._require_person_id(mother_name)
+        father_name_clean = father_name.strip() if father_name else None
+        mother_name_clean = mother_name.strip() if mother_name else None
+        father_id = self._find_person_id(father_name_clean)
+        mother_id = self._find_person_id(mother_name_clean)
 
         self.connection.execute(
             """
             INSERT INTO people (
-                full_name, clan_name, gender, birth_year, notes, father_id, mother_id
+                full_name,
+                clan_name,
+                gender,
+                birth_year,
+                notes,
+                father_name_text,
+                mother_name_text,
+                father_id,
+                mother_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 cleaned_name,
@@ -85,10 +106,13 @@ class ClanBook:
                 gender.strip() if gender else None,
                 None,
                 notes.strip() if notes else None,
+                father_name_clean,
+                mother_name_clean,
                 father_id,
                 mother_id,
             ),
         )
+        self._link_family_connections(cleaned_name)
         self.connection.commit()
 
     def list_people(self) -> Iterable[sqlite3.Row]:
@@ -102,8 +126,8 @@ class ClanBook:
             """
             SELECT
                 child.*,
-                father.full_name AS father_name,
-                mother.full_name AS mother_name
+                COALESCE(father.full_name, child.father_name_text) AS father_name,
+                COALESCE(mother.full_name, child.mother_name_text) AS mother_name
             FROM people AS child
             LEFT JOIN people AS father ON father.id = child.father_id
             LEFT JOIN people AS mother ON mother.id = child.mother_id
@@ -112,6 +136,57 @@ class ClanBook:
             (full_name.strip(),),
         )
         return cursor.fetchone()
+
+    def _link_family_connections(self, full_name: str) -> None:
+        person = self._get_person_by_name(full_name)
+        if not person:
+            return
+
+        person_id = int(person["id"])
+        father_name_text = person["father_name_text"]
+        mother_name_text = person["mother_name_text"]
+
+        if father_name_text and not person["father_id"]:
+            father_id = self._find_person_id(father_name_text)
+            if father_id:
+                self.connection.execute(
+                    "UPDATE people SET father_id = ? WHERE id = ?",
+                    (father_id, person_id),
+                )
+
+        if mother_name_text and not person["mother_id"]:
+            mother_id = self._find_person_id(mother_name_text)
+            if mother_id:
+                self.connection.execute(
+                    "UPDATE people SET mother_id = ? WHERE id = ?",
+                    (mother_id, person_id),
+                )
+
+        self.connection.execute(
+            """
+            UPDATE people
+            SET father_id = (
+                SELECT id FROM people AS parent
+                WHERE parent.full_name = people.father_name_text
+            )
+            WHERE father_name_text = ?
+              AND (father_id IS NULL OR father_id != ?)
+            """,
+            (full_name, person_id),
+        )
+
+        self.connection.execute(
+            """
+            UPDATE people
+            SET mother_id = (
+                SELECT id FROM people AS parent
+                WHERE parent.full_name = people.mother_name_text
+            )
+            WHERE mother_name_text = ?
+              AND (mother_id IS NULL OR mother_id != ?)
+            """,
+            (full_name, person_id),
+        )
 
     def lineage(self, full_name: str) -> list[str]:
         person = self.get_person_details(full_name)
@@ -335,7 +410,7 @@ class ClanBookApp:
             )
 
         ttk.Label(card, text="Notes", style="Body.TLabel").grid(
-            row=6, column=0, sticky="nw", padx=(0, 12), pady=6
+            row=7, column=0, sticky="nw", padx=(0, 12), pady=6
         )
         self.notes_text = tk.Text(
             card,
@@ -345,12 +420,13 @@ class ClanBookApp:
             bg="#ffffff",
             fg="#2c2419",
         )
-        self.notes_text.grid(row=6, column=1, sticky="ew", pady=6)
+        self.notes_text.grid(row=7, column=1, sticky="ew", pady=6)
 
         button_row = ttk.Frame(card, style="Card.TFrame")
-        button_row.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        button_row.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(10, 0))
         button_row.columnconfigure(0, weight=1)
         button_row.columnconfigure(1, weight=1)
+        button_row.columnconfigure(2, weight=1)
 
         ttk.Button(
             button_row,
@@ -415,9 +491,10 @@ class ClanBookApp:
     def build_full_name(self) -> str:
         first_name = self.first_name_var.get().strip()
         second_name = self.second_name_var.get().strip()
-        if not first_name or not second_name:
-            raise ValueError("First name and second name are required.")
-        return f"{first_name} {second_name}"
+        full_name = " ".join(part for part in [first_name, second_name] if part)
+        if not full_name:
+            raise ValueError("Enter at least one name.")
+        return full_name
 
     def clear_form(self) -> None:
         self.first_name_var.set("")
