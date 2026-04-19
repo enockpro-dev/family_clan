@@ -58,6 +58,13 @@ class ClanBook:
         )
         return cursor.fetchone()
 
+    def _get_person_by_id(self, person_id: int) -> sqlite3.Row | None:
+        cursor = self.connection.execute(
+            "SELECT * FROM people WHERE id = ?",
+            (person_id,),
+        )
+        return cursor.fetchone()
+
     def _find_person_id(self, full_name: str | None) -> int | None:
         if not full_name:
             return None
@@ -214,6 +221,124 @@ class ClanBook:
         self._append_parent_line(lines, parent["father_name"], "Father", level + 1)
         self._append_parent_line(lines, parent["mother_name"], "Mother", level + 1)
 
+    def _parent_ids(self, person: sqlite3.Row) -> set[int]:
+        parent_ids: set[int] = set()
+        if person["father_id"]:
+            parent_ids.add(int(person["father_id"]))
+        if person["mother_id"]:
+            parent_ids.add(int(person["mother_id"]))
+        return parent_ids
+
+    def _children_of(self, person_id: int) -> list[sqlite3.Row]:
+        cursor = self.connection.execute(
+            """
+            SELECT * FROM people
+            WHERE father_id = ? OR mother_id = ?
+            ORDER BY full_name COLLATE NOCASE
+            """,
+            (person_id, person_id),
+        )
+        return cursor.fetchall()
+
+    def describe_relationship(self, base_name: str, target_name: str) -> str:
+        base = self.get_person_details(base_name)
+        target = self.get_person_details(target_name)
+
+        if not base:
+            raise ValueError(f"'{base_name}' was not found in the clan book.")
+        if not target:
+            raise ValueError(f"'{target_name}' was not found in the clan book.")
+
+        if base["id"] == target["id"]:
+            return f"{target_name} is you."
+
+        base_id = int(base["id"])
+        target_id = int(target["id"])
+        target_gender = (target["gender"] or "").strip().lower()
+        base_parents = self._parent_ids(base)
+        target_parents = self._parent_ids(target)
+
+        if base["father_id"] and int(base["father_id"]) == target_id:
+            return f"{target_name} is your father."
+        if base["mother_id"] and int(base["mother_id"]) == target_id:
+            return f"{target_name} is your mother."
+        if target_id in base_parents:
+            return f"{target_name} is your parent."
+
+        if target["father_id"] and int(target["father_id"]) == base_id:
+            return f"{target_name} is your {'son' if target_gender == 'male' else 'daughter' if target_gender == 'female' else 'child'}."
+        if target["mother_id"] and int(target["mother_id"]) == base_id:
+            return f"{target_name} is your {'son' if target_gender == 'male' else 'daughter' if target_gender == 'female' else 'child'}."
+        if base_id in target_parents:
+            return f"{target_name} is your {'son' if target_gender == 'male' else 'daughter' if target_gender == 'female' else 'child'}."
+
+        shared_parents = base_parents & target_parents
+        if shared_parents:
+            sibling_word = (
+                "brother" if target_gender == "male" else "sister" if target_gender == "female" else "sibling"
+            )
+            return f"{target_name} is your {sibling_word}."
+
+        grandparents = set()
+        for parent_id in base_parents:
+            parent = self._get_person_by_id(parent_id)
+            if parent:
+                grandparents |= self._parent_ids(parent)
+        if target_id in grandparents:
+            return f"{target_name} is your grandparent."
+
+        grandchildren = set()
+        for child in self._children_of(base_id):
+            grandchildren |= {int(grandchild['id']) for grandchild in self._children_of(int(child["id"]))}
+        if target_id in grandchildren:
+            return f"{target_name} is your grandchild."
+
+        parent_siblings = set()
+        for parent_id in base_parents:
+            parent = self._get_person_by_id(parent_id)
+            if parent:
+                parent_siblings |= self._siblings_of(parent)
+        if target_id in parent_siblings:
+            return f"{target_name} is your aunt/uncle."
+
+        base_siblings = self._siblings_of(base)
+        nieces_nephews = set()
+        for sibling_id in base_siblings:
+            for child in self._children_of(sibling_id):
+                nieces_nephews.add(int(child["id"]))
+        if target_id in nieces_nephews:
+            return f"{target_name} is your niece/nephew."
+
+        cousins = set()
+        for parent_id in base_parents:
+            parent = self._get_person_by_id(parent_id)
+            if not parent:
+                continue
+            for aunt_uncle_id in self._siblings_of(parent):
+                for cousin in self._children_of(aunt_uncle_id):
+                    cousins.add(int(cousin["id"]))
+        if target_id in cousins:
+            return f"{target_name} is your cousin."
+
+        return (
+            f"{target_name} is registered, but the app cannot yet determine the exact "
+            "relationship from the linked family records."
+        )
+
+    def _siblings_of(self, person: sqlite3.Row) -> set[int]:
+        person_id = int(person["id"])
+        parent_ids = self._parent_ids(person)
+        siblings: set[int] = set()
+        if not parent_ids:
+            return siblings
+
+        for parent_id in parent_ids:
+            for child in self._children_of(parent_id):
+                child_id = int(child["id"])
+                if child_id != person_id:
+                    siblings.add(child_id)
+        return siblings
+
 
 class ClanBookApp:
     def __init__(self, root: tk.Tk, book: ClanBook) -> None:
@@ -224,7 +349,9 @@ class ClanBookApp:
         self.root.geometry("760x560")
         self.root.minsize(680, 520)
 
+        self.current_user_name: str | None = None
         self.login_name_var = tk.StringVar()
+        self.search_name_var = tk.StringVar()
         self.first_name_var = tk.StringVar()
         self.second_name_var = tk.StringVar()
         self.clan_name_var = tk.StringVar()
@@ -447,6 +574,75 @@ class ClanBookApp:
             command=self.show_home_view,
         ).grid(row=0, column=2, sticky="ew", padx=(6, 0))
 
+    def show_search_view(self) -> None:
+        self._clear_content()
+        self.header_title.config(text="Relative Search")
+        self.header_subtitle.config(
+            text="Search a registered person and see how they are related to you."
+        )
+
+        card = ttk.Frame(self.content, style="Card.TFrame", padding=24)
+        card.grid(row=0, column=0, sticky="nsew")
+        card.columnconfigure(1, weight=1)
+
+        current_name = self.current_user_name or ""
+        ttk.Label(card, text="Logged in as", style="Body.TLabel").grid(
+            row=0, column=0, sticky="w", padx=(0, 12), pady=6
+        )
+        ttk.Label(card, text=current_name, style="Heading.TLabel").grid(
+            row=0, column=1, sticky="w", pady=6
+        )
+
+        ttk.Label(card, text="Search person", style="Body.TLabel").grid(
+            row=1, column=0, sticky="w", padx=(0, 12), pady=6
+        )
+        ttk.Entry(card, textvariable=self.search_name_var).grid(
+            row=1, column=1, sticky="ew", pady=6
+        )
+
+        button_row = ttk.Frame(card, style="Card.TFrame")
+        button_row.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(14, 10))
+        button_row.columnconfigure(0, weight=1)
+        button_row.columnconfigure(1, weight=1)
+        button_row.columnconfigure(2, weight=1)
+
+        ttk.Button(
+            button_row,
+            text="Search",
+            style="Accent.TButton",
+            command=self.search_relationship,
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+        ttk.Button(
+            button_row,
+            text="New Search",
+            command=lambda: self.search_name_var.set(""),
+        ).grid(row=0, column=1, sticky="ew", padx=6)
+
+        ttk.Button(
+            button_row,
+            text="Logout",
+            command=self.logout_person,
+        ).grid(row=0, column=2, sticky="ew", padx=(6, 0))
+
+        ttk.Label(card, text="Result", style="Body.TLabel").grid(
+            row=3, column=0, sticky="nw", padx=(0, 12), pady=6
+        )
+        self.search_result_text = tk.Text(
+            card,
+            height=8,
+            wrap="word",
+            font=("Segoe UI", 10),
+            bg="#ffffff",
+            fg="#2c2419",
+        )
+        self.search_result_text.grid(row=3, column=1, sticky="nsew", pady=6)
+        self.search_result_text.insert(
+            "1.0",
+            "Enter a registered person's full name, then click Search.",
+        )
+        self.search_result_text.config(state="disabled")
+
     def login_person(self) -> None:
         full_name = self.login_name_var.get().strip()
         if not full_name:
@@ -461,8 +657,10 @@ class ClanBookApp:
             )
             return
 
-        messagebox.showinfo("Login", f"Welcome back, {full_name}.")
+        self.current_user_name = full_name
         self.login_name_var.set("")
+        self.search_name_var.set("")
+        self.show_search_view()
 
     def save_person(self) -> None:
         try:
@@ -504,6 +702,37 @@ class ClanBookApp:
         self.father_name_var.set("")
         self.mother_name_var.set("")
         self.notes_text.delete("1.0", tk.END)
+
+    def set_result_text(self, text: str) -> None:
+        self.search_result_text.config(state="normal")
+        self.search_result_text.delete("1.0", tk.END)
+        self.search_result_text.insert("1.0", text)
+        self.search_result_text.config(state="disabled")
+
+    def search_relationship(self) -> None:
+        if not self.current_user_name:
+            messagebox.showerror("Search", "Login first.")
+            return
+
+        target_name = self.search_name_var.get().strip()
+        if not target_name:
+            messagebox.showerror("Search", "Enter the person's full name to search.")
+            return
+
+        try:
+            relationship = self.book.describe_relationship(
+                self.current_user_name, target_name
+            )
+        except ValueError as error:
+            messagebox.showerror("Search", str(error))
+            return
+
+        self.set_result_text(relationship)
+
+    def logout_person(self) -> None:
+        self.current_user_name = None
+        self.search_name_var.set("")
+        self.show_home_view()
 
 
 def build_parser() -> argparse.ArgumentParser:
