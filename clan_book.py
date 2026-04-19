@@ -85,7 +85,7 @@ class ClanBook:
     ) -> None:
         cleaned_name = full_name.strip()
         if not cleaned_name:
-            raise ValueError("Full name is required.")
+            raise ValueError("Jina kamili linahitajika.")
 
         father_name_clean = father_name.strip() if father_name else None
         mother_name_clean = mother_name.strip() if mother_name else None
@@ -245,12 +245,12 @@ class ClanBook:
         target = self.get_person_details(target_name)
 
         if not base:
-            raise ValueError(f"'{base_name}' was not found in the clan book.")
+            raise ValueError(f"'{base_name}' hakupatikana kwenye daftari la ukoo.")
         if not target:
-            raise ValueError(f"'{target_name}' was not found in the clan book.")
+            raise ValueError(f"'{target_name}' hakupatikana kwenye daftari la ukoo.")
 
         if base["id"] == target["id"]:
-            return f"{target_name} is you."
+            return f"{target_name} ni wewe mwenyewe."
 
         base_id = int(base["id"])
         target_id = int(target["id"])
@@ -259,25 +259,25 @@ class ClanBook:
         target_parents = self._parent_ids(target)
 
         if base["father_id"] and int(base["father_id"]) == target_id:
-            return f"{target_name} is your father."
+            return f"{target_name} ni baba yako."
         if base["mother_id"] and int(base["mother_id"]) == target_id:
-            return f"{target_name} is your mother."
+            return f"{target_name} ni mama yako."
         if target_id in base_parents:
-            return f"{target_name} is your parent."
+            return f"{target_name} ni mzazi wako."
 
         if target["father_id"] and int(target["father_id"]) == base_id:
-            return f"{target_name} is your {'son' if target_gender == 'male' else 'daughter' if target_gender == 'female' else 'child'}."
+            return f"{target_name} ni {'mwanao wa kiume' if target_gender == 'male' else 'mwanao wa kike' if target_gender == 'female' else 'mtoto wako'}."
         if target["mother_id"] and int(target["mother_id"]) == base_id:
-            return f"{target_name} is your {'son' if target_gender == 'male' else 'daughter' if target_gender == 'female' else 'child'}."
+            return f"{target_name} ni {'mwanao wa kiume' if target_gender == 'male' else 'mwanao wa kike' if target_gender == 'female' else 'mtoto wako'}."
         if base_id in target_parents:
-            return f"{target_name} is your {'son' if target_gender == 'male' else 'daughter' if target_gender == 'female' else 'child'}."
+            return f"{target_name} ni {'mwanao wa kiume' if target_gender == 'male' else 'mwanao wa kike' if target_gender == 'female' else 'mtoto wako'}."
 
         shared_parents = base_parents & target_parents
         if shared_parents:
             sibling_word = (
-                "brother" if target_gender == "male" else "sister" if target_gender == "female" else "sibling"
+                "ndugu yako wa kiume" if target_gender == "male" else "ndugu yako wa kike" if target_gender == "female" else "ndugu yako"
             )
-            return f"{target_name} is your {sibling_word}."
+            return f"{target_name} ni {sibling_word}."
 
         grandparents = set()
         for parent_id in base_parents:
@@ -285,13 +285,13 @@ class ClanBook:
             if parent:
                 grandparents |= self._parent_ids(parent)
         if target_id in grandparents:
-            return f"{target_name} is your grandparent."
+            return f"{target_name} ni babu au bibi yako."
 
         grandchildren = set()
         for child in self._children_of(base_id):
             grandchildren |= {int(grandchild['id']) for grandchild in self._children_of(int(child["id"]))}
         if target_id in grandchildren:
-            return f"{target_name} is your grandchild."
+            return f"{target_name} ni mjukuu wako."
 
         parent_siblings = set()
         for parent_id in base_parents:
@@ -299,7 +299,7 @@ class ClanBook:
             if parent:
                 parent_siblings |= self._siblings_of(parent)
         if target_id in parent_siblings:
-            return f"{target_name} is your aunt/uncle."
+            return f"{target_name} ni shangazi, mjomba, ama ami yako."
 
         base_siblings = self._siblings_of(base)
         nieces_nephews = set()
@@ -307,7 +307,7 @@ class ClanBook:
             for child in self._children_of(sibling_id):
                 nieces_nephews.add(int(child["id"]))
         if target_id in nieces_nephews:
-            return f"{target_name} is your niece/nephew."
+            return f"{target_name} ni mtoto wa ndugu yako."
 
         cousins = set()
         for parent_id in base_parents:
@@ -318,11 +318,11 @@ class ClanBook:
                 for cousin in self._children_of(aunt_uncle_id):
                     cousins.add(int(cousin["id"]))
         if target_id in cousins:
-            return f"{target_name} is your cousin."
+            return f"{target_name} ni binamu yako."
 
         return (
-            f"{target_name} is registered, but the app cannot yet determine the exact "
-            "relationship from the linked family records."
+            f"{target_name} amesajiliwa, lakini programu bado haiwezi kutambua "
+            "uhusiano wenu halisi kutokana na taarifa za familia zilizounganishwa."
         )
 
     def _siblings_of(self, person: sqlite3.Row) -> set[int]:
@@ -345,7 +345,7 @@ class ClanBookApp:
         self.root = root
         self.book = book
 
-        self.root.title("Clan Registration")
+        self.root.title("Usajili wa Ukoo")
         self.root.geometry("760x560")
         self.root.minsize(680, 520)
 
@@ -393,7 +393,7 @@ class ClanBookApp:
 
         self.header_title = ttk.Label(
             outer,
-            text="Family Clan Book",
+            text="Daftari la Ukoo",
             style="Title.TLabel",
             font=("Georgia", 24, "bold"),
         )
@@ -401,7 +401,7 @@ class ClanBookApp:
 
         self.header_subtitle = ttk.Label(
             outer,
-            text="Choose login if already registered, or register to create a new record.",
+            text="Chagua kuingia kama tayari umesajiliwa, au jisajili kuunda taarifa mpya.",
             style="Title.TLabel",
             font=("Segoe UI", 11),
         )
@@ -420,23 +420,23 @@ class ClanBookApp:
 
     def show_home_view(self) -> None:
         self._clear_content()
-        self.header_title.config(text="Family Clan Book")
+        self.header_title.config(text="Daftari la Ukoo")
         self.header_subtitle.config(
-            text="Choose login if already registered, or register to create a new record."
+            text="Chagua kuingia kama tayari umesajiliwa, au jisajili kuunda taarifa mpya."
         )
 
         card = ttk.Frame(self.content, style="Card.TFrame", padding=24)
         card.grid(row=0, column=0, sticky="nsew")
         card.columnconfigure(0, weight=1)
 
-        ttk.Label(card, text="Welcome", style="Heading.TLabel").grid(
+        ttk.Label(card, text="Karibu", style="Heading.TLabel").grid(
             row=0, column=0, sticky="w", pady=(0, 10)
         )
 
         message = (
-            "This is the front view of the family clan app.\n"
-            "Select login if the person is already registered,\n"
-            "or select register for a new person."
+            "Huu ndio ukurasa wa kwanza wa programu ya ukoo.\n"
+            "Chagua Ingia kama mtu tayari amesajiliwa,\n"
+            "au chagua Jisajili kwa mtu mpya."
         )
         ttk.Label(
             card,
@@ -452,32 +452,32 @@ class ClanBookApp:
 
         ttk.Button(
             buttons,
-            text="Login",
+            text="Ingia",
             style="Accent.TButton",
             command=self.show_login_view,
         ).grid(row=0, column=0, sticky="ew", padx=(0, 8))
 
         ttk.Button(
             buttons,
-            text="Register",
+            text="Jisajili",
             command=self.show_register_view,
         ).grid(row=0, column=1, sticky="ew", padx=(8, 0))
 
     def show_login_view(self) -> None:
         self._clear_content()
-        self.header_title.config(text="Login")
+        self.header_title.config(text="Ingia")
         self.header_subtitle.config(
-            text="Enter the person's full name to continue if they are already registered."
+            text="Weka jina kamili la mtu kuendelea kama tayari amesajiliwa."
         )
 
         card = ttk.Frame(self.content, style="Card.TFrame", padding=24)
         card.grid(row=0, column=0, sticky="nsew")
         card.columnconfigure(1, weight=1)
 
-        ttk.Label(card, text="Login", style="Heading.TLabel").grid(
+        ttk.Label(card, text="Ingia", style="Heading.TLabel").grid(
             row=0, column=0, columnspan=2, sticky="w", pady=(0, 12)
         )
-        ttk.Label(card, text="Full name", style="Body.TLabel").grid(
+        ttk.Label(card, text="Jina kamili", style="Body.TLabel").grid(
             row=1, column=0, sticky="w", padx=(0, 12), pady=6
         )
         ttk.Entry(card, textvariable=self.login_name_var).grid(
@@ -491,22 +491,22 @@ class ClanBookApp:
 
         ttk.Button(
             button_row,
-            text="Continue",
+            text="Endelea",
             style="Accent.TButton",
             command=self.login_person,
         ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
         ttk.Button(
             button_row,
-            text="Back",
+            text="Rudi",
             command=self.show_home_view,
         ).grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
     def show_register_view(self) -> None:
         self._clear_content()
-        self.header_title.config(text="Register")
+        self.header_title.config(text="Jisajili")
         self.header_subtitle.config(
-            text="Enter a person's details to register them in the clan book."
+            text="Weka taarifa za mtu ili asajiliwe kwenye daftari la ukoo."
         )
         self._build_form(self.content)
 
@@ -515,17 +515,17 @@ class ClanBookApp:
         card.grid(row=0, column=0, sticky="nsew")
         card.columnconfigure(1, weight=1)
 
-        ttk.Label(card, text="Registration Form", style="Heading.TLabel").grid(
+        ttk.Label(card, text="Fomu ya Usajili", style="Heading.TLabel").grid(
             row=0, column=0, columnspan=2, sticky="w", pady=(0, 10)
         )
 
         fields = [
-            ("First name", self.first_name_var),
-            ("Second name", self.second_name_var),
-            ("Clan name", self.clan_name_var),
-            ("Gender", self.gender_var),
-            ("Father full name", self.father_name_var),
-            ("Mother full name", self.mother_name_var),
+            ("Jina la kwanza", self.first_name_var),
+            ("Jina la pili", self.second_name_var),
+            ("Jina la ukoo", self.clan_name_var),
+            ("Jinsia", self.gender_var),
+            ("Jina kamili la baba", self.father_name_var),
+            ("Jina kamili la mama", self.mother_name_var),
         ]
 
         for row_index, (label, variable) in enumerate(fields, start=1):
@@ -536,7 +536,7 @@ class ClanBookApp:
                 row=row_index, column=1, sticky="ew", pady=6
             )
 
-        ttk.Label(card, text="Notes", style="Body.TLabel").grid(
+        ttk.Label(card, text="Maelezo", style="Body.TLabel").grid(
             row=7, column=0, sticky="nw", padx=(0, 12), pady=6
         )
         self.notes_text = tk.Text(
@@ -557,28 +557,28 @@ class ClanBookApp:
 
         ttk.Button(
             button_row,
-            text="Save Person",
+            text="Hifadhi",
             style="Accent.TButton",
             command=self.save_person,
         ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
         ttk.Button(
             button_row,
-            text="Clear Form",
+            text="Futa Fomu",
             command=self.clear_form,
         ).grid(row=0, column=1, sticky="ew", padx=(6, 6))
 
         ttk.Button(
             button_row,
-            text="Back",
+            text="Rudi",
             command=self.show_home_view,
         ).grid(row=0, column=2, sticky="ew", padx=(6, 0))
 
     def show_search_view(self) -> None:
         self._clear_content()
-        self.header_title.config(text="Relative Search")
+        self.header_title.config(text="Tafuta Uhusiano")
         self.header_subtitle.config(
-            text="Search a registered person and see how they are related to you."
+            text="Tafuta mtu aliyesajiliwa uone ana uhusiano gani na wewe."
         )
 
         card = ttk.Frame(self.content, style="Card.TFrame", padding=24)
@@ -586,14 +586,14 @@ class ClanBookApp:
         card.columnconfigure(1, weight=1)
 
         current_name = self.current_user_name or ""
-        ttk.Label(card, text="Logged in as", style="Body.TLabel").grid(
+        ttk.Label(card, text="Umeingia kama", style="Body.TLabel").grid(
             row=0, column=0, sticky="w", padx=(0, 12), pady=6
         )
         ttk.Label(card, text=current_name, style="Heading.TLabel").grid(
             row=0, column=1, sticky="w", pady=6
         )
 
-        ttk.Label(card, text="Search person", style="Body.TLabel").grid(
+        ttk.Label(card, text="Tafuta mtu", style="Body.TLabel").grid(
             row=1, column=0, sticky="w", padx=(0, 12), pady=6
         )
         ttk.Entry(card, textvariable=self.search_name_var).grid(
@@ -608,24 +608,24 @@ class ClanBookApp:
 
         ttk.Button(
             button_row,
-            text="Search",
+            text="Tafuta",
             style="Accent.TButton",
             command=self.search_relationship,
         ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
         ttk.Button(
             button_row,
-            text="New Search",
+            text="Tafuta Tena",
             command=lambda: self.search_name_var.set(""),
         ).grid(row=0, column=1, sticky="ew", padx=6)
 
         ttk.Button(
             button_row,
-            text="Logout",
+            text="Toka",
             command=self.logout_person,
         ).grid(row=0, column=2, sticky="ew", padx=(6, 0))
 
-        ttk.Label(card, text="Result", style="Body.TLabel").grid(
+        ttk.Label(card, text="Majibu", style="Body.TLabel").grid(
             row=3, column=0, sticky="nw", padx=(0, 12), pady=6
         )
         self.search_result_text = tk.Text(
@@ -639,21 +639,21 @@ class ClanBookApp:
         self.search_result_text.grid(row=3, column=1, sticky="nsew", pady=6)
         self.search_result_text.insert(
             "1.0",
-            "Enter a registered person's full name, then click Search.",
+            "Weka jina kamili la mtu aliyesajiliwa, kisha bonyeza Tafuta.",
         )
         self.search_result_text.config(state="disabled")
 
     def login_person(self) -> None:
         full_name = self.login_name_var.get().strip()
         if not full_name:
-            messagebox.showerror("Login", "Enter the full name first.")
+            messagebox.showerror("Ingia", "Weka jina kamili kwanza.")
             return
 
         person = self.book.get_person_details(full_name)
         if not person:
             messagebox.showerror(
-                "Not found",
-                f"{full_name} is not registered yet. Please use Register.",
+                "Hajapatikana",
+                f"{full_name} bado hajasajiliwa. Tafadhali tumia Jisajili.",
             )
             return
 
@@ -674,24 +674,24 @@ class ClanBookApp:
                 mother_name=self.mother_name_var.get() or None,
             )
         except ValueError as error:
-            messagebox.showerror("Cannot save person", str(error))
+            messagebox.showerror("Haiwezi kuhifadhi", str(error))
             return
         except sqlite3.IntegrityError:
             messagebox.showerror(
-                "Cannot save person",
-                "That person already exists in the clan book.",
+                "Haiwezi kuhifadhi",
+                "Mtu huyo tayari yupo kwenye daftari la ukoo.",
             )
             return
 
         self.clear_form()
-        messagebox.showinfo("Saved", f"{full_name} was added successfully.")
+        messagebox.showinfo("Imehifadhiwa", f"{full_name} ameongezwa kwa mafanikio.")
 
     def build_full_name(self) -> str:
         first_name = self.first_name_var.get().strip()
         second_name = self.second_name_var.get().strip()
         full_name = " ".join(part for part in [first_name, second_name] if part)
         if not full_name:
-            raise ValueError("Enter at least one name.")
+            raise ValueError("Weka angalau jina moja.")
         return full_name
 
     def clear_form(self) -> None:
@@ -711,12 +711,12 @@ class ClanBookApp:
 
     def search_relationship(self) -> None:
         if not self.current_user_name:
-            messagebox.showerror("Search", "Login first.")
+            messagebox.showerror("Tafuta", "Ingia kwanza.")
             return
 
         target_name = self.search_name_var.get().strip()
         if not target_name:
-            messagebox.showerror("Search", "Enter the person's full name to search.")
+            messagebox.showerror("Tafuta", "Weka jina kamili la mtu unayetafuta.")
             return
 
         try:
@@ -724,7 +724,7 @@ class ClanBookApp:
                 self.current_user_name, target_name
             )
         except ValueError as error:
-            messagebox.showerror("Search", str(error))
+            messagebox.showerror("Tafuta", str(error))
             return
 
         self.set_result_text(relationship)
@@ -737,27 +737,27 @@ class ClanBookApp:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Register clan members and trace their family chain."
+        description="Sajili watu wa ukoo na fuatilia uhusiano wa familia."
     )
     subparsers = parser.add_subparsers(dest="command")
 
-    add_parser = subparsers.add_parser("add", help="Register a new person.")
-    add_parser.add_argument("--name", required=True, help="Full name of the person.")
-    add_parser.add_argument("--clan", help="Clan name.")
-    add_parser.add_argument("--gender", help="Gender.")
-    add_parser.add_argument("--notes", help="Extra notes.")
-    add_parser.add_argument("--father", help="Full name of the father.")
-    add_parser.add_argument("--mother", help="Full name of the mother.")
+    add_parser = subparsers.add_parser("add", help="Sajili mtu mpya.")
+    add_parser.add_argument("--name", required=True, help="Jina kamili la mtu.")
+    add_parser.add_argument("--clan", help="Jina la ukoo.")
+    add_parser.add_argument("--gender", help="Jinsia.")
+    add_parser.add_argument("--notes", help="Maelezo ya ziada.")
+    add_parser.add_argument("--father", help="Jina kamili la baba.")
+    add_parser.add_argument("--mother", help="Jina kamili la mama.")
 
-    subparsers.add_parser("list", help="List all registered people.")
+    subparsers.add_parser("list", help="Orodhesha watu wote waliosajiliwa.")
 
-    details_parser = subparsers.add_parser("details", help="Show one person's details.")
-    details_parser.add_argument("--name", required=True, help="Full name to search.")
+    details_parser = subparsers.add_parser("details", help="Onyesha taarifa za mtu mmoja.")
+    details_parser.add_argument("--name", required=True, help="Jina kamili la kutafuta.")
 
     lineage_parser = subparsers.add_parser(
-        "lineage", help="Show the full parent chain for a person."
+        "lineage", help="Onyesha mlolongo wa wazazi wa mtu."
     )
-    lineage_parser.add_argument("--name", required=True, help="Full name to search.")
+    lineage_parser.add_argument("--name", required=True, help="Jina kamili la kutafuta.")
 
     return parser
 
@@ -793,24 +793,24 @@ def main() -> None:
                 father_name=args.father,
                 mother_name=args.mother,
             )
-            print(f"Registered {args.name}.")
+            print(f"{args.name} amesajiliwa.")
         elif args.command == "list":
             people = list(book.list_people())
             if not people:
-                print("No people have been registered yet.")
+                print("Bado hakuna watu waliosajiliwa.")
                 return
             for person in people:
                 print(person["full_name"])
         elif args.command == "details":
             details = book.get_person_details(args.name)
             if not details:
-                raise ValueError(f"'{args.name}' was not found in the clan book.")
-            print(f"Name: {details['full_name']}")
-            print(f"Clan: {details['clan_name'] or 'Not set'}")
-            print(f"Gender: {details['gender'] or 'Not set'}")
-            print(f"Father: {details['father_name'] or 'Unknown'}")
-            print(f"Mother: {details['mother_name'] or 'Unknown'}")
-            print(f"Notes: {details['notes'] or 'None'}")
+                raise ValueError(f"'{args.name}' hakupatikana kwenye daftari la ukoo.")
+            print(f"Jina: {details['full_name']}")
+            print(f"Ukoo: {details['clan_name'] or 'Haijawekwa'}")
+            print(f"Jinsia: {details['gender'] or 'Haijawekwa'}")
+            print(f"Baba: {details['father_name'] or 'Hajulikani'}")
+            print(f"Mama: {details['mother_name'] or 'Hajulikani'}")
+            print(f"Maelezo: {details['notes'] or 'Hakuna'}")
         elif args.command == "lineage":
             for line in book.lineage(args.name):
                 print(line)
