@@ -146,9 +146,10 @@ class ClanBookApp:
         self.book = book
 
         self.root.title("Clan Registration")
-        self.root.geometry("680x520")
-        self.root.minsize(620, 500)
+        self.root.geometry("760x560")
+        self.root.minsize(680, 520)
 
+        self.login_name_var = tk.StringVar()
         self.full_name_var = tk.StringVar()
         self.clan_name_var = tk.StringVar()
         self.gender_var = tk.StringVar()
@@ -187,28 +188,124 @@ class ClanBookApp:
         outer = ttk.Frame(self.root, style="App.TFrame", padding=18)
         outer.pack(fill="both", expand=True)
 
-        title = ttk.Label(
+        self.header_title = ttk.Label(
             outer,
-            text="Clan Registration",
+            text="Family Clan Book",
             style="Title.TLabel",
             font=("Georgia", 24, "bold"),
         )
-        title.pack(anchor="w")
+        self.header_title.pack(anchor="w")
 
-        subtitle = ttk.Label(
+        self.header_subtitle = ttk.Label(
             outer,
-            text="Enter a person's details to register them in the clan book.",
+            text="Choose login if already registered, or register to create a new record.",
             style="Title.TLabel",
             font=("Segoe UI", 11),
         )
-        subtitle.pack(anchor="w", pady=(4, 14))
+        self.header_subtitle.pack(anchor="w", pady=(4, 14))
 
-        content = ttk.Frame(outer, style="App.TFrame")
-        content.pack(fill="both", expand=True)
-        content.columnconfigure(0, weight=1)
-        content.rowconfigure(0, weight=1)
+        self.content = ttk.Frame(outer, style="App.TFrame")
+        self.content.pack(fill="both", expand=True)
+        self.content.columnconfigure(0, weight=1)
+        self.content.rowconfigure(0, weight=1)
 
-        self._build_form(content)
+        self.show_home_view()
+
+    def _clear_content(self) -> None:
+        for child in self.content.winfo_children():
+            child.destroy()
+
+    def show_home_view(self) -> None:
+        self._clear_content()
+        self.header_title.config(text="Family Clan Book")
+        self.header_subtitle.config(
+            text="Choose login if already registered, or register to create a new record."
+        )
+
+        card = ttk.Frame(self.content, style="Card.TFrame", padding=24)
+        card.grid(row=0, column=0, sticky="nsew")
+        card.columnconfigure(0, weight=1)
+
+        ttk.Label(card, text="Welcome", style="Heading.TLabel").grid(
+            row=0, column=0, sticky="w", pady=(0, 10)
+        )
+
+        message = (
+            "This is the front view of the family clan app.\n"
+            "Select login if the person is already registered,\n"
+            "or select register for a new person."
+        )
+        ttk.Label(
+            card,
+            text=message,
+            style="Body.TLabel",
+            justify="left",
+        ).grid(row=1, column=0, sticky="w", pady=(0, 20))
+
+        buttons = ttk.Frame(card, style="Card.TFrame")
+        buttons.grid(row=2, column=0, sticky="ew")
+        buttons.columnconfigure(0, weight=1)
+        buttons.columnconfigure(1, weight=1)
+
+        ttk.Button(
+            buttons,
+            text="Login",
+            style="Accent.TButton",
+            command=self.show_login_view,
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 8))
+
+        ttk.Button(
+            buttons,
+            text="Register",
+            command=self.show_register_view,
+        ).grid(row=0, column=1, sticky="ew", padx=(8, 0))
+
+    def show_login_view(self) -> None:
+        self._clear_content()
+        self.header_title.config(text="Login")
+        self.header_subtitle.config(
+            text="Enter the person's full name to continue if they are already registered."
+        )
+
+        card = ttk.Frame(self.content, style="Card.TFrame", padding=24)
+        card.grid(row=0, column=0, sticky="nsew")
+        card.columnconfigure(1, weight=1)
+
+        ttk.Label(card, text="Login", style="Heading.TLabel").grid(
+            row=0, column=0, columnspan=2, sticky="w", pady=(0, 12)
+        )
+        ttk.Label(card, text="Full name", style="Body.TLabel").grid(
+            row=1, column=0, sticky="w", padx=(0, 12), pady=6
+        )
+        ttk.Entry(card, textvariable=self.login_name_var).grid(
+            row=1, column=1, sticky="ew", pady=6
+        )
+
+        button_row = ttk.Frame(card, style="Card.TFrame")
+        button_row.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(14, 0))
+        button_row.columnconfigure(0, weight=1)
+        button_row.columnconfigure(1, weight=1)
+
+        ttk.Button(
+            button_row,
+            text="Continue",
+            style="Accent.TButton",
+            command=self.login_person,
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+
+        ttk.Button(
+            button_row,
+            text="Back",
+            command=self.show_home_view,
+        ).grid(row=0, column=1, sticky="ew", padx=(6, 0))
+
+    def show_register_view(self) -> None:
+        self._clear_content()
+        self.header_title.config(text="Register")
+        self.header_subtitle.config(
+            text="Enter a person's details to register them in the clan book."
+        )
+        self._build_form(self.content)
 
     def _build_form(self, parent: ttk.Frame) -> None:
         card = ttk.Frame(parent, style="Card.TFrame", padding=16)
@@ -264,7 +361,30 @@ class ClanBookApp:
             button_row,
             text="Clear Form",
             command=self.clear_form,
-        ).grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        ).grid(row=0, column=1, sticky="ew", padx=(6, 6))
+
+        ttk.Button(
+            button_row,
+            text="Back",
+            command=self.show_home_view,
+        ).grid(row=0, column=2, sticky="ew", padx=(6, 0))
+
+    def login_person(self) -> None:
+        full_name = self.login_name_var.get().strip()
+        if not full_name:
+            messagebox.showerror("Login", "Enter the full name first.")
+            return
+
+        person = self.book.get_person_details(full_name)
+        if not person:
+            messagebox.showerror(
+                "Not found",
+                f"{full_name} is not registered yet. Please use Register.",
+            )
+            return
+
+        messagebox.showinfo("Login", f"Welcome back, {full_name}.")
+        self.login_name_var.set("")
 
     def save_person(self) -> None:
         try:
