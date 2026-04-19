@@ -43,3 +43,4 @@ python clan_book.py add --name "Peter Okello" --father "John Okello"
 - The database file is created automatically as `clan_book.db`
 - Tkinter usually comes with Python on Windows
 - The desktop form does not ask for birth information
+- The register form uses first name, second name, clan name, gender, parents, and notes
