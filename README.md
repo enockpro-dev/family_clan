@@ -1,10 +1,11 @@
 # Clan Book
 
-A small Python desktop app for registering clan members.
+A small Python desktop app for a family clan system.
 
 ## Features
 
 - Register a person with clan details in a desktop window
+- Front view with login or register choices
 - Save records in SQLite so the data stays after closing the app
 - Link each person to a father and mother
 - Still supports command line actions if needed
@@ -17,9 +18,10 @@ python clan_book.py
 
 The window includes:
 
-1. A registration form only
-2. Fields for name, clan, gender, parents, and notes
-3. Save and clear buttons
+1. A front view as the first screen
+2. A front view with `Login` or `Register`
+3. Login checks whether the person already exists
+4. Register opens the person details form
 
 ## Command line examples
 
