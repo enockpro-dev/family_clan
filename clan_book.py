@@ -85,7 +85,7 @@ class ClanBook:
     ) -> None:
         cleaned_name = full_name.strip()
         if not cleaned_name:
-            raise ValueError("Jina kamili linahitajika.")
+            raise ValueError("Ingiza majina yako mawili.")
 
         father_name_clean = father_name.strip() if father_name else None
         mother_name_clean = mother_name.strip() if mother_name else None
