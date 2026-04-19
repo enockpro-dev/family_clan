@@ -6,6 +6,7 @@ A small Python desktop app for a family clan system.
 
 - Register a person with clan details in a desktop window
 - Front view with login or register choices
+- Logged-in users can search another registered person and see the relationship
 - Save records in SQLite so the data stays after closing the app
 - Link each person to a father and mother
 - Still supports command line actions if needed
@@ -22,6 +23,7 @@ The window includes:
 2. A front view with `Login` or `Register`
 3. Login checks whether the person already exists
 4. Register opens the person details form
+5. After login, a user can search another registered person and see the relationship
 
 ## Command line examples
 
@@ -45,3 +47,4 @@ python clan_book.py add --name "Peter Okello" --father "John Okello"
 - The register form uses first name, second name, clan name, gender, parents, and notes
 - A person can register even if the parents are not yet saved in the system
 - When a matching parent is later registered, the app can link that relationship automatically
+- Relationship search works best when family members are registered and linked in the system
