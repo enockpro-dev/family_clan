@@ -150,7 +150,8 @@ class ClanBookApp:
         self.root.minsize(680, 520)
 
         self.login_name_var = tk.StringVar()
-        self.full_name_var = tk.StringVar()
+        self.first_name_var = tk.StringVar()
+        self.second_name_var = tk.StringVar()
         self.clan_name_var = tk.StringVar()
         self.gender_var = tk.StringVar()
         self.father_name_var = tk.StringVar()
@@ -317,7 +318,8 @@ class ClanBookApp:
         )
 
         fields = [
-            ("Full name", self.full_name_var),
+            ("First name", self.first_name_var),
+            ("Second name", self.second_name_var),
             ("Clan name", self.clan_name_var),
             ("Gender", self.gender_var),
             ("Father full name", self.father_name_var),
@@ -388,8 +390,9 @@ class ClanBookApp:
 
     def save_person(self) -> None:
         try:
+            full_name = self.build_full_name()
             self.book.add_person(
-                full_name=self.full_name_var.get(),
+                full_name=full_name,
                 clan_name=self.clan_name_var.get() or None,
                 gender=self.gender_var.get() or None,
                 notes=self.notes_text.get("1.0", tk.END).strip() or None,
@@ -406,12 +409,19 @@ class ClanBookApp:
             )
             return
 
-        saved_name = self.full_name_var.get().strip()
         self.clear_form()
-        messagebox.showinfo("Saved", f"{saved_name} was added successfully.")
+        messagebox.showinfo("Saved", f"{full_name} was added successfully.")
+
+    def build_full_name(self) -> str:
+        first_name = self.first_name_var.get().strip()
+        second_name = self.second_name_var.get().strip()
+        if not first_name or not second_name:
+            raise ValueError("First name and second name are required.")
+        return f"{first_name} {second_name}"
 
     def clear_form(self) -> None:
-        self.full_name_var.set("")
+        self.first_name_var.set("")
+        self.second_name_var.set("")
         self.clan_name_var.set("")
         self.gender_var.set("")
         self.father_name_var.set("")
